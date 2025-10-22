@@ -1,18 +1,15 @@
 package com.jpmc.midascore;
 
+import com.jpmc.midascore.component.DatabaseConduit;
+import com.jpmc.midascore.entity.UserRecord;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.kafka.test.context.EmbeddedKafka;
-import org.springframework.test.annotation.DirtiesContext;
+
+import java.util.Optional;
 
 @SpringBootTest
-@DirtiesContext
-@EmbeddedKafka(partitions = 1, brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"})
 public class TaskFourTests {
-    static final Logger logger = LoggerFactory.getLogger(TaskFourTests.class);
 
     @Autowired
     private KafkaProducer kafkaProducer;
@@ -23,6 +20,9 @@ public class TaskFourTests {
     @Autowired
     private FileLoader fileLoader;
 
+    @Autowired
+    private DatabaseConduit databaseConduit;
+
     @Test
     void task_four_verifier() throws InterruptedException {
         userPopulator.populate();
@@ -30,17 +30,17 @@ public class TaskFourTests {
         for (String transactionLine : transactionLines) {
             kafkaProducer.send(transactionLine);
         }
-        Thread.sleep(2000);
 
+        Thread.sleep(3000); // wait for transactions to be processed
 
-        logger.info("----------------------------------------------------------");
-        logger.info("----------------------------------------------------------");
-        logger.info("----------------------------------------------------------");
-        logger.info("use your debugger to find out what wilbur's balance is after all transactions are processed");
-        logger.info("kill this test once you find the answer");
-        while (true) {
-            Thread.sleep(20000);
-            logger.info("...");
+        // Fetch wilbur's balance
+        Optional<UserRecord> wilburOpt = databaseConduit.getUserByName("wilbur");
+        if (wilburOpt.isPresent()) {
+            float balance = wilburOpt.get().getBalance();
+            int roundedBalance = (int) Math.floor(balance);
+            System.out.println("Wilbur's balance (rounded down): " + roundedBalance);
+        } else {
+            System.out.println("Wilbur not found!");
         }
     }
 }
